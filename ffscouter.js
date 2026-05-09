@@ -23,11 +23,13 @@ const TARGET_KEY = "ffscouterv2-targets";
 const TARGET_INDEX_KEY = "ffscouterv2-target-index";
 const CLEARED_TSC_KEY = "ffscouterv2-cleared-tsc-keys";
 const CHECK_KEY_CACHE_KEY = "ffscouterv2-check-key-cache";
-const CHECK_KEY_INTERVAL = 15 * 60 * 1000;
+const CHECK_KEY_INTERVAL = 5 * 60 * 1000;
+const PREMIUM_UPGRADE_URL = "https://ffscouter.com/premium";
 const memberCountdowns = {};
 const MAX_REQUESTS_PER_MINUTE = 20;
 let apiCallInProgressCount = 0;
 let currentUserId = null;
+let premiumStatusRefreshInFlight = false;
 
 const TOAST_ERROR = "error";
 const TOAST_LOG = "log";
@@ -927,6 +929,16 @@ if (!singleton) {
               showToast(ff_response.error);
               return;
             }
+            // If distribution data is returned while premium cache says "not premium",
+            // force a fresh check-key call to correct stale premium status.
+            const hasReturnedDistribution = Array.isArray(ff_response)
+              ? ff_response.some(
+                  (result) => !!result?.distribution?.distribution_human,
+                )
+              : false;
+            if (hasReturnedDistribution && getCachedPremiumStatus() === false) {
+              checkKeyAndUpdatePremium(true);
+            }
             var one_hour = 60 * 60 * 1000;
             var expiry = Date.now() + one_hour;
             const cachedObjs = [];
@@ -946,6 +958,7 @@ if (!singleton) {
                     expiry: expiry,
                     bs_estimate: result.bs_estimate,
                     bs_estimate_human: result.bs_estimate_human,
+                    premium_insights_available: !!result.premium_insights_available,
                     distribution_human:
                       result.distribution?.distribution_human ?? null,
                     distribution_last_updated:
@@ -1132,6 +1145,16 @@ if (!singleton) {
     }
   }
 
+  function getCachedPremiumStatus() {
+    try {
+      const cached = JSON.parse(rD_getValue(CHECK_KEY_CACHE_KEY, null));
+      if (!cached || typeof cached.is_premium !== "boolean") return null;
+      return cached.is_premium;
+    } catch {
+      return null;
+    }
+  }
+
   function get_difficulty_text(ff) {
     if (ff <= 1) {
       return "Extremely easy";
@@ -1189,7 +1212,17 @@ if (!singleton) {
     let statDetails = "";
     if (ff_response.bs_estimate_human) {
       let distLine = "";
-      if (ff_response.distribution_human) {
+      const isViewerPremium = getCachedPremiumStatus();
+      if (
+        isViewerPremium === false &&
+        ff_response.premium_insights_available === true &&
+        !ff_response.distribution_human
+      ) {
+        distLine =
+          '<span style="display:block; margin-top: 2px; font-size: 12px; font-style: normal; white-space: nowrap;"><a href="' +
+          PREMIUM_UPGRADE_URL +
+          '" target="_blank" rel="noopener noreferrer" style="font-weight: bold; text-decoration: underline;">Premium Data Available - Upgrade To View</a></span>';
+      } else if (ff_response.distribution_human) {
         const ageStr = get_age_human(ff_response.distribution_last_updated);
         const agePart = ageStr ? ` (${ageStr} old)` : "";
         distLine = `<span style="display:block; margin-top: 2px; font-size: 12px; font-style: normal;"><span style="font-weight: bold; margin-right: 6px;">Top Stats:</span><span style="font-weight: normal;">${ff_response.distribution_human}${agePart}</span></span>`;
@@ -3101,8 +3134,9 @@ if (!singleton) {
     checkKeyAndUpdatePremium();
   }
 
-  function checkKeyAndUpdatePremium() {
+  function checkKeyAndUpdatePremium(forceRefresh = false) {
     if (!key) return;
+    if (premiumStatusRefreshInFlight) return;
     const now = Date.now();
     const cached = (() => {
       try {
@@ -3112,6 +3146,7 @@ if (!singleton) {
       }
     })();
     if (
+      !forceRefresh &&
       cached &&
       cached.last_checked &&
       now - cached.last_checked < CHECK_KEY_INTERVAL
@@ -3120,11 +3155,13 @@ if (!singleton) {
       applyPremiumBadge(cached.is_premium);
       return;
     }
+    premiumStatusRefreshInFlight = true;
     const url = `${BASE_URL}/api/v1/check-key?key=${key}`;
     rD_xmlhttpRequest({
       method: "GET",
       url: url,
       onload: function (response) {
+        premiumStatusRefreshInFlight = false;
         if (!response || response.status !== 200) return;
         try {
           const data = JSON.parse(response.responseText);
@@ -3139,6 +3176,7 @@ if (!singleton) {
         }
       },
       onerror: function (e) {
+        premiumStatusRefreshInFlight = false;
         ffdebug("[FF Scouter V2] check-key error", e);
       },
     });
