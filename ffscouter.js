@@ -382,6 +382,24 @@ if (!singleton) {
 				letter-spacing: 0.3px;
 				pointer-events: none;
 			}
+
+			.ff-premium-upgrade-line {
+				display: block;
+				margin-top: 4px;
+				line-height: 1.3;
+				white-space: nowrap;
+				font-size: 12px;
+				font-style: normal;
+			}
+
+			@media (max-width: 768px) {
+				.ff-premium-upgrade-line {
+					margin-top: 6px;
+					line-height: 1.35;
+					white-space: normal;
+					overflow-wrap: anywhere;
+				}
+			}
         `);
 
   var BASE_URL = "https://ffscouter.com";
@@ -1210,27 +1228,27 @@ if (!singleton) {
     const text_colour = get_contrast_color(background_colour);
 
     let statDetails = "";
+    let extraDetailsLine = "";
     if (ff_response.bs_estimate_human) {
-      let distLine = "";
       const isViewerPremium = getCachedPremiumStatus();
       if (
         isViewerPremium === false &&
         ff_response.premium_insights_available === true &&
         !ff_response.distribution_human
       ) {
-        distLine =
-          '<span style="display:block; margin-top: 2px; font-size: 12px; font-style: normal; white-space: nowrap;"><a href="' +
+        extraDetailsLine =
+          '<span class="ff-premium-upgrade-line"><a href="' +
           PREMIUM_UPGRADE_URL +
           '" target="_blank" rel="noopener noreferrer" style="font-weight: bold; text-decoration: underline;">Premium Data Available - Upgrade To View</a></span>';
       } else if (ff_response.distribution_human) {
         const ageStr = get_age_human(ff_response.distribution_last_updated);
         const agePart = ageStr ? ` (${ageStr} old)` : "";
-        distLine = `<span style="display:block; margin-top: 2px; font-size: 12px; font-style: normal;"><span style="font-weight: bold; margin-right: 6px;">Top Stats:</span><span style="font-weight: normal;">${ff_response.distribution_human}${agePart}</span></span>`;
+        extraDetailsLine = `<span style="display:block; margin-top: 2px; font-size: 12px; font-style: normal;"><span style="font-weight: bold; margin-right: 6px;">Top Stats:</span><span style="font-weight: normal;">${ff_response.distribution_human}${agePart}</span></span>`;
       }
-      statDetails = `<span style="font-size: 11px; font-weight: normal; margin-left: 8px; vertical-align: middle; font-style: italic;">Est. Stats: <span>${ff_response.bs_estimate_human}</span>${distLine}</span>`;
+      statDetails = `<span style="font-size: 11px; font-weight: normal; margin-left: 8px; vertical-align: middle; font-style: italic;">Est. Stats: <span>${ff_response.bs_estimate_human}</span></span>`;
     }
 
-    return `<span style=\"font-weight: bold; margin-right: 6px;\">FairFight:</span><span style=\"background: ${background_colour}; color: ${text_colour}; font-weight: bold; padding: 2px 6px; border-radius: 4px; display: inline-block;\">${ff_string} (${difficulty}) ${fresh}</span>${statDetails}`;
+    return `<span style=\"font-weight: bold; margin-right: 6px;\">FairFight:</span><span style=\"background: ${background_colour}; color: ${text_colour}; font-weight: bold; padding: 2px 6px; border-radius: 4px; display: inline-block;\">${ff_string} (${difficulty}) ${fresh}</span>${statDetails}${extraDetailsLine}`;
   }
 
   function get_ff_string_short(ff_response, player_id) {
