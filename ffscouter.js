@@ -2,7 +2,7 @@
 // @name         FF Scouter V2
 // @namespace    Violentmonkey Scripts
 // @match        https://www.torn.com/*
-// @version      2.73
+// @version      2.74
 // @author       rDacted, Weav3r, xentac, Glasnost
 // @description  Shows the expected Fair Fight score against targets and faction war status
 // @grant        GM_xmlhttpRequest
@@ -16,7 +16,7 @@
 // @license      GPL-3.0
 // ==/UserScript==
 
-const FF_VERSION = "2.73";
+const FF_VERSION = "2.74";
 const API_INTERVAL = 30000;
 const FF_TARGET_STALENESS = 24 * 60 * 60 * 1000; // Refresh the target list every day
 const TARGET_KEY = "ffscouterv2-targets";
@@ -976,7 +976,8 @@ if (!singleton) {
                     expiry: expiry,
                     bs_estimate: result.bs_estimate,
                     bs_estimate_human: result.bs_estimate_human,
-                    premium_insights_available: !!result.premium_insights_available,
+                    premium_insights_available:
+                      !!result.premium_insights_available,
                     distribution_human:
                       result.distribution?.distribution_human ?? null,
                     distribution_last_updated:
